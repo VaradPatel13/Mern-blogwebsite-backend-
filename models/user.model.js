@@ -18,21 +18,20 @@ const userSchema = new Schema(
     },
     mobileNumber: {
       type: String,
-      // Optional for Google users
       match: [/^\d{10}$/, 'Mobile number must be exactly 10 digits.'],
     },
     password: {
       type: String,
       minlength: [6, "Password must be at least 6 characters long"],
-      select: false ,// Don't return in queries
+      select: false,
       required: function () {
-        return !this.googleId; // Only require password if not a Google user
+        return !this.googleId;
       },
     },
     googleId: {
-      type: String, // Only set for Google-auth users
+      type: String,
       unique: true,
-      sparse: true, // Allows multiple nulls
+      sparse: true,
     },
     authProvider: {
       type: String,
@@ -51,7 +50,20 @@ const userSchema = new Schema(
         validator: v => /^https?:\/\/[^\s]+$/.test(v),
         message: "Please provide a valid image URL"
       }
-    }
+    },
+    savedBlogs: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Blog'
+    }],
+    followers: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }],
+    followed: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }]
+
   },
   { timestamps: true }
 );

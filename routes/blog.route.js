@@ -26,7 +26,7 @@ router.delete("/:id",authenticateUser,handleDeleteBlog);
 
 
 router.patch('/:id/views', incrementViews);
-router.patch('/:id/likes', toggleLike);
-router.post('/:id/comments',addComment);
+router.patch('/:id/likes', authenticateUser ,toggleLike);
+router.post('/:id/comments',authenticateUser,addComment);
 
 export default router;

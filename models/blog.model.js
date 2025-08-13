@@ -65,14 +65,24 @@ const blogSchema = new Schema(
         message: "Tags must be non-empty strings"
       }
     },
-    viewedBy: [{ 
-        type: Schema.Types.ObjectId, 
-        ref: 'User' 
-      }],
+    views: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    likes: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    viewedBy: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     likedBy: [{
-       type: Schema.Types.ObjectId, 
-       ref: 'User' 
-      }],
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }],
     comments: {
       type: [commentSchema],
       default: []

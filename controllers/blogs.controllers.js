@@ -171,18 +171,11 @@ export const handleAllCreatedBlogs = async (req, res) => {
 export const incrementViews = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id; // or use IP for anonymous users
 
     const blog = await Blog.findById(id);
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
 
-    // If user already viewed, do not increment
-    if (blog.viewedBy.includes(userId)) {
-      return res.status(200).json({ message: 'Already viewed', blog });
-    }
-
     blog.views += 1;
-    blog.viewedBy.push(userId);
     await blog.save();
 
     res.status(200).json({ message: 'View incremented', blog });
@@ -191,44 +184,65 @@ export const incrementViews = async (req, res) => {
   }
 };
 
-
 export const toggleLike = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      console.log("Unauthorized: no user ID found in request");
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
     const blog = await Blog.findById(id);
-    if (!blog) return res.status(404).json({ message: 'Blog not found' });
+    if (!blog) {
+      console.log(`Blog not found with id: ${id}`);
+      return res.status(404).json({ message: "Blog not found" });
+    }
 
-    const alreadyLiked = blog.likedBy.includes(userId);
+    if (!Array.isArray(blog.likedBy)) blog.likedBy = [];
+    blog.likedBy = blog.likedBy.filter(uid => uid);
+    blog.likes = typeof blog.likes === "number" ? blog.likes : 0;
+
+    const alreadyLiked = blog.likedBy.some(uid => uid && uid.toString() === userId.toString());
 
     if (alreadyLiked) {
-      blog.likes -= 1;
-      blog.likedBy = blog.likedBy.filter(uid => uid.toString() !== userId.toString());
+      blog.likes = Math.max(blog.likes - 1, 0);
+      blog.likedBy = blog.likedBy.filter(uid => uid && uid.toString() !== userId.toString());
+      console.log(`User ${userId} unliked blog ${id}. Total likes now: ${blog.likes}`);
     } else {
       blog.likes += 1;
       blog.likedBy.push(userId);
+      console.log(`User ${userId} liked blog ${id}. Total likes now: ${blog.likes}`);
     }
 
     await blog.save();
 
-    res.status(200).json({ message: alreadyLiked ? 'Unliked' : 'Liked', blog });
+    res.status(200).json({
+      message: alreadyLiked ? "Unliked" : "Liked",
+      blog
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error toggling like', error: err.message });
+    console.error("Error toggling like:", err);
+    res.status(500).json({ message: "Error toggling like", error: err.message });
   }
 };
 
+
+
+// In your blog controller on the backend (e.g., blogController.js)
 
 export const addComment = async (req, res) => {
   try {
     const { id } = req.params; // Blog ID
     const { text } = req.body;
-    const userId = req.user._id; // Assumes user is authenticated and req.user is populated
+    const userId = req.user.id; 
 
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ message: 'Comment text is required' });
     }
 
+    // Use .populate() to get author details for the comment response
     const blog = await Blog.findById(id);
     if (!blog) {
       return res.status(404).json({ message: 'Blog not found' });
@@ -238,8 +252,21 @@ export const addComment = async (req, res) => {
     blog.comments.push(newComment);
     await blog.save();
 
-    res.status(200).json({ message: 'Comment added successfully', blog });
+    // Find the newly added comment to populate its 'user' field
+    await blog.populate({
+        path: 'comments.user',
+        select: 'fullName profilePicture'
+    });
+
+    // Get the last comment added, which is the one we just created
+    const addedComment = blog.comments[blog.comments.length - 1];
+
+    // FIX: Send back only the newly created comment object
+    console.log("comment : ",{ data: addedComment })
+    res.status(201).json({ data: addedComment }); 
+
   } catch (err) {
+    console.error('Add comment error:', err); // Log the full error on the server
     res.status(500).json({ message: 'Failed to add comment', error: err.message });
   }
 };
